@@ -1,0 +1,27 @@
+root   ::= action
+action ::= "{" ws "\"op\"" ws ":" ws op ws "}"
+op     ::= open-app | open-url | search | type-text | press-keys | click | dclick | scroll | shot | read-screen | volume | window | read-file | write-file | delete-file | run | wait | drag
+
+open-app    ::= "\"open_app\"" ws "," ws "\"app\"" ws ":" ws app
+open-url    ::= "\"open_url\"" ws "," ws "\"url\"" ws ":" ws string
+search      ::= "\"search\"" ws "," ws "\"query\"" ws ":" ws string
+type-text   ::= "\"type_text\"" ws "," ws "\"text\"" ws ":" ws string
+press-keys  ::= "\"press_keys\"" ws "," ws "\"keys\"" ws ":" ws string
+click       ::= "\"click\"" ws "," ws "\"target\"" ws ":" ws string
+dclick      ::= "\"double_click\"" ws "," ws "\"target\"" ws ":" ws string
+scroll      ::= "\"scroll\"" ws "," ws "\"dir\"" ws ":" ws ("\"up\"" | "\"down\"")
+shot        ::= "\"screenshot\""
+read-screen ::= "\"read_screen\""
+volume      ::= "\"set_volume\"" ws "," ws "\"dir\"" ws ":" ws ("\"up\"" | "\"down\"" | "\"mute\"")
+window      ::= "\"window\"" ws "," ws "\"act\"" ws ":" ws ("\"minimize\"" | "\"close\"" | "\"focus\"")
+read-file   ::= "\"read_file\"" ws "," ws "\"path\"" ws ":" ws string
+write-file  ::= "\"write_file\"" ws "," ws "\"path\"" ws ":" ws string ws "," ws "\"content\"" ws ":" ws string ws "," ws "\"mode\"" ws ":" ws ("\"replace\"" | "\"append\"")
+delete-file ::= "\"delete_file\"" ws "," ws "\"path\"" ws ":" ws string
+run         ::= "\"run_command\"" ws "," ws "\"command\"" ws ":" ws string
+wait        ::= "\"wait\"" ws "," ws "\"ms\"" ws ":" ws number
+drag        ::= "\"drag\"" ws "," ws "\"from\"" ws ":" ws string ws "," ws "\"to\"" ws ":" ws string
+
+app    ::= "\"notepad\"" | "\"browser\"" | "\"files\"" | "\"terminal\""
+string ::= "\"" [^"\\]{0,180} "\""
+number ::= [0-9]{1,4}
+ws     ::= [ \t\n]{0,4}

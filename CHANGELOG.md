@@ -7,6 +7,7 @@
 - Optional Claude brain. The default stays the local model. The API key is not written to disk in this preview. On Windows it belongs in Credential Manager. If Claude is offline or the key fails, Nupid uses the local model. Only a short slice of the focused window is eligible to leave the machine, and only after you accept the warning.
 - Liquid glass panels. Blur, strength, and tint are in Settings.
 - Face readout shows CLAUDE/MCP while a client is driving, and ONLINE while a Claude reply is in use.
+- Optional external MCP client. The address must be localhost. Its tool names join the router.
 
 ## 0.1.0
 

@@ -108,6 +108,21 @@ export function claudeCodeCommand(): string {
   return "claude mcp add nupid -- NupidAssistant.exe --mcp";
 }
 
+export async function fetchExternalTools(
+  url: string,
+  fetchImpl: (input: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean; json: () => Promise<{ result?: { tools?: { name: string }[] } }> }> = fetch as never,
+): Promise<string[]> {
+  if (!localhostOnly(url)) throw new Error("External MCP servers must be localhost");
+  const response = await fetchImpl(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+  });
+  if (!response.ok) throw new Error("External MCP server refused the connection");
+  const data = await response.json();
+  return (data.result?.tools ?? []).map((tool) => tool.name).filter(Boolean);
+}
+
 export function localhostOnly(url: string): boolean {
   try {
     const parsed = new URL(url);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { askClaude, claudeBody } from "./claude.ts";
 import { clearClaudeKey, setClaudeKey } from "./credentials.ts";
-import { handleMcp, localhostOnly, type McpSession } from "./mcp.ts";
+import { handleMcp, fetchExternalTools, type McpSession } from "./mcp.ts";
 import { defaultSettings, type McpTool } from "./types.ts";
 import { initialWorld } from "./world.ts";
 
@@ -93,7 +93,11 @@ test("claude falls back to local when the key or the network fails", async () =>
   clearClaudeKey();
 });
 
-test("external MCP urls must stay on localhost", () => {
-  assert.equal(localhostOnly("http://127.0.0.1:9/mcp"), true);
-  assert.equal(localhostOnly("https://example.com/mcp"), false);
+test("an external localhost server can add tool names", async () => {
+  const names = await fetchExternalTools("http://127.0.0.1:9/mcp", async () => ({
+    ok: true,
+    json: async () => ({ result: { tools: [{ name: "ping" }] } }),
+  }));
+  assert.deepEqual(names, ["ping"]);
+  await assert.rejects(() => fetchExternalTools("https://example.com/mcp"), /localhost/);
 });

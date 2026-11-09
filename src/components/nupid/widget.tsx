@@ -194,6 +194,8 @@ function McpSettings() {
   const settings = useNupid((s) => s.settings);
   const patchSettings = useNupid((s) => s.patchSettings);
   const callMcp = useNupid((s) => s.callMcp);
+  const connectExternal = useNupid((s) => s.connectExternal);
+  const externalTools = useNupid((s) => s.externalTools);
   const actionLog = useNupid((s) => s.actionLog);
   const [keyOn, setKeyOn] = useState(hasClaudeKey());
   const [copied, setCopied] = useState("");
@@ -311,6 +313,19 @@ function McpSettings() {
             {copied === "config" ? "Copied" : "Copy Claude Desktop config"}
           </button>
           <p className="font-mono text-xs text-mute">{claudeCodeCommand()}</p>
+          <label className="block text-sm">
+            <span className="nupid-kicker text-mute">External MCP (localhost)</span>
+            <input
+              className="nupid-field mt-1 w-full px-2 py-2"
+              placeholder="http://127.0.0.1:3000/mcp"
+              value={settings.externalMcp}
+              onChange={(event) => patchSettings({ externalMcp: event.target.value })}
+            />
+          </label>
+          <button type="button" className="text-sm text-phosphor" onClick={() => void connectExternal()}>
+            Connect
+          </button>
+          {externalTools.length ? <p className="text-xs text-mute">Tools: {externalTools.join(", ")}</p> : null}
           {actionLog.length ? <p className="text-xs text-mute">Log: {actionLog.slice(-3).join(" · ")}</p> : null}
         </>
       ) : (

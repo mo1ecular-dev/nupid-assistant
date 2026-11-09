@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { askClaude } from "./claude.ts";
-import { handleMcp, type McpSession } from "./mcp.ts";
+import { fetchExternalTools, handleMcp, type McpSession } from "./mcp.ts";
 import { narrate, planInput, type Plan, type Step } from "./plan.ts";
 import {
   defaultSettings,
@@ -63,6 +63,7 @@ type NupidState = {
   halted: boolean;
   actionLog: string[];
   mcpPending: { name: string; args: Record<string, unknown> } | null;
+  externalTools: string[];
   boot: () => void;
   send: (text: string) => Promise<void>;
   approve: () => void;
@@ -91,6 +92,7 @@ type NupidState = {
   wakeFace: () => void;
   sleepFace: () => void;
   callMcp: (raw: string) => string;
+  connectExternal: () => Promise<void>;
 };
 
 const memoryStorage = {
@@ -245,6 +247,7 @@ export const useNupid = create<NupidState>()(
         halted: false,
         actionLog: [],
         mcpPending: null,
+        externalTools: [],
 
         boot: () => {
           const runId = get().runId + 1;
@@ -275,6 +278,22 @@ export const useNupid = create<NupidState>()(
             messages = messages.slice(messages.length - 16);
           }
           const plan = planInput(trimmed, get().settings, get().world, summary);
+          const external = get().externalTools.find((name) => trimmed.toLowerCase().startsWith(name.toLowerCase()));
+          if (external) {
+            set({
+              runId,
+              messages,
+              summary,
+              pending: null,
+              streaming: false,
+              face: "acting",
+              status: "CLAUDE/MCP",
+              control: "mcp",
+              actionLog: [...get().actionLog, `external ${external}`].slice(-12),
+            });
+            await speak(`“${external}” is on your localhost MCP server. This preview does not call it.`, runId, false, "mcp");
+            return;
+          }
           set({
             runId,
             messages,
@@ -494,6 +513,23 @@ export const useNupid = create<NupidState>()(
             mcpPending,
           });
           return out.reply;
+        },
+        connectExternal: async () => {
+          const url = get().settings.externalMcp.trim();
+          if (!url) {
+            set({ externalTools: [] });
+            return;
+          }
+          try {
+            const names = await fetchExternalTools(url);
+            set({
+              externalTools: names,
+              actionLog: [...get().actionLog, `external tools ${names.length}`].slice(-12),
+              status: names.length ? "CLAUDE/MCP" : "ready",
+            });
+          } catch {
+            set({ externalTools: [], status: "external MCP unreachable" });
+          }
         },
       };
     },

@@ -141,7 +141,7 @@ function DeskWindowView({ win }: { win: DeskWindow }) {
 
   return (
     <article
-      className="absolute w-80 overflow-hidden rounded-xl border border-line bg-panel"
+      className="nupid-glass absolute w-80 overflow-hidden"
       style={{ left: win.x, top: win.y, zIndex: win.z }}
       onPointerDown={() => focusWin(win.id)}
     >
@@ -191,7 +191,7 @@ export function Desk() {
       {windows.map((win) => (
         <DeskWindowView key={win.id} win={win} />
       ))}
-      <footer className="absolute inset-x-0 bottom-0 flex h-12 items-center gap-2 border-t border-line bg-panel px-3">
+      <footer className="nupid-glass absolute inset-x-0 bottom-0 flex h-12 items-center gap-2 px-3">
         <span className="nupid-kicker text-phosphor">Nupid</span>
         <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
           {windows.map((win) => (

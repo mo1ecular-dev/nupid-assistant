@@ -11,6 +11,7 @@ type Props = {
   status: string;
   modelLabel: string;
   slot: string;
+  source?: string;
 };
 
 const THEME = {
@@ -344,6 +345,7 @@ export function Display({
   status,
   modelLabel,
   slot,
+  source,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const propsRef = useRef({ tab, face, tps, theme, lowPower, compact, status });
@@ -454,7 +456,7 @@ export function Display({
         <div className="mt-1 flex items-center justify-between gap-2">
           <span className="nupid-readout text-ink">{face}</span>
           <span className="nupid-readout truncate text-mute">
-            {modelLabel} · {slot}
+            {source ? source : `${modelLabel} · ${slot}`}
           </span>
         </div>
       )}

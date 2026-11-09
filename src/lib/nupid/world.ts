@@ -185,6 +185,14 @@ function screenTree(world: World): string {
   return `Screen\n${lines.join("\n")}`;
 }
 
+/** Focused window only, capped. Claude never receives a screenshot. */
+export function screenSlice(world: World): string {
+  const focused = world.windows.find((w) => w.id === world.focusedId);
+  if (!focused) return "No focused window.";
+  const tree = screenTree({ ...world, windows: [focused] });
+  return tree.slice(0, 800);
+}
+
 export function applyAction(world: World, action: Action): ApplyResult {
   switch (action.op) {
     case "open_app":

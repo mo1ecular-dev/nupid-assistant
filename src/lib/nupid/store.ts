@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { askClaude } from "./claude.ts";
+import { handleMcp, type McpSession } from "./mcp.ts";
 import { narrate, planInput, type Plan, type Step } from "./plan.ts";
 import {
   defaultSettings,
@@ -56,6 +58,11 @@ type NupidState = {
   summary: string;
   world: World;
   pending: Pending | null;
+  control: "local" | "mcp";
+  online: boolean;
+  halted: boolean;
+  actionLog: string[];
+  mcpPending: { name: string; args: Record<string, unknown> } | null;
   boot: () => void;
   send: (text: string) => Promise<void>;
   approve: () => void;
@@ -83,6 +90,7 @@ type NupidState = {
   userActivate: (action: Action) => void;
   wakeFace: () => void;
   sleepFace: () => void;
+  callMcp: (raw: string) => string;
 };
 
 const memoryStorage = {
@@ -232,6 +240,11 @@ export const useNupid = create<NupidState>()(
         summary: "",
         world: initialWorld(),
         pending: null,
+        control: "local",
+        online: false,
+        halted: false,
+        actionLog: [],
+        mcpPending: null,
 
         boot: () => {
           const runId = get().runId + 1;
@@ -275,7 +288,15 @@ export const useNupid = create<NupidState>()(
             running: true,
           });
           if (plan.via === "model") {
-            set({ modelSlot: "loading", status: "thinking" });
+            const brain = await askClaude(get().settings, get().world, trimmed);
+            if (!alive(runId)) return;
+            if (brain.via === "claude" && brain.text) {
+              set({ online: true, modelSlot: "off", control: "local", status: "ONLINE" });
+              await speak(brain.text, runId, false, "claude");
+              return;
+            }
+            set({ online: false, status: brain.reason === "offline" ? "offline — local model" : "thinking" });
+            set({ modelSlot: "loading", status: get().status === "thinking" ? "thinking" : get().status });
             await sleep(get().settings.lowPower ? 1300 : 900);
             if (!alive(runId)) return;
             set({ modelSlot: "hot" });
@@ -288,6 +309,19 @@ export const useNupid = create<NupidState>()(
         },
 
         approve: () => {
+          const mcpPending = get().mcpPending;
+          if (mcpPending) {
+            set({ mcpPending: null, pending: null });
+            get().callMcp(
+              JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "tools/call",
+                params: { name: mcpPending.name, arguments: { ...mcpPending.args, confirm: true } },
+              }),
+            );
+            return;
+          }
           const pending = get().pending;
           if (!pending) return;
           set({ pending: null, streaming: true, face: "acting" });
@@ -301,6 +335,18 @@ export const useNupid = create<NupidState>()(
         },
 
         deny: () => {
+          const mcpPending = get().mcpPending;
+          if (mcpPending) {
+            set({
+              mcpPending: null,
+              pending: null,
+              face: "idle",
+              status: "ready",
+              control: "local",
+              actionLog: [...get().actionLog, `stopped ${mcpPending.name}`].slice(-12),
+            });
+            return;
+          }
           const pending = get().pending;
           if (!pending) return;
           set({ pending: null });
@@ -317,12 +363,16 @@ export const useNupid = create<NupidState>()(
             runId,
             streaming: false,
             pending: null,
+            halted: true,
+            online: false,
+            control: "local",
             face: "error",
             status: "halted",
             tps: 0,
+            actionLog: [...get().actionLog, "halt"].slice(-12),
           });
           setTimeout(() => {
-            if (get().runId === runId) set({ face: "idle", status: "ready" });
+            if (get().runId === runId) set({ face: "idle", status: "ready", halted: false });
           }, 700);
         },
 
@@ -403,12 +453,54 @@ export const useNupid = create<NupidState>()(
             set({ face: "sleep", status: "sleeping" });
           }
         },
+        callMcp: (raw: string) => {
+          const state = get();
+          const session: McpSession = {
+            world: state.world,
+            settings: state.settings,
+            face: state.face,
+            status: state.status,
+            halted: state.halted,
+            modelSlot: state.modelSlot,
+            message: "",
+            pending: null,
+          };
+          const out = handleMcp(raw, session);
+          const mcpPending = out.session.pending
+            ? { name: out.session.pending.tool, args: out.session.pending.args }
+            : null;
+          let messages = state.messages;
+          if (out.session.pending) {
+            messages = [
+              ...messages,
+              {
+                id: uid("m"),
+                role: "assistant",
+                content: `Allow ${out.session.pending.tool.replaceAll("_", " ")}?`,
+                pendingConfirm: true,
+                trace: "mcp",
+              },
+            ];
+          } else if (out.session.message) {
+            messages = [...messages, { id: uid("m"), role: "assistant", content: out.session.message, trace: "mcp" }];
+          }
+          set({
+            world: out.session.world,
+            face: out.session.face,
+            status: out.session.status,
+            control: state.settings.mcpServer ? "mcp" : state.control,
+            actionLog: out.log ? [...state.actionLog, out.log].slice(-12) : state.actionLog,
+            messages,
+            mcpPending,
+          });
+          return out.reply;
+        },
       };
     },
     {
       name: "nupid-assistant",
       skipHydration: true,
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() =>
         typeof window === "undefined" ? memoryStorage : localStorage,
       ),

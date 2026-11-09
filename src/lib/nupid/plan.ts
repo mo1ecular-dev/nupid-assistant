@@ -84,7 +84,7 @@ export function labelFor(action: Action): string {
   }
 }
 
-function confirmFor(action: Action, safety: Safety): string | undefined {
+export function confirmFor(action: Action, safety: Safety): string | undefined {
   if (action.op === "run_command") return `Run “${action.command}”?`;
   if (action.op === "delete_file") return `Delete ${action.path}?`;
   if (action.op === "write_file" && safety === "cautious") return `Write ${action.path}?`;

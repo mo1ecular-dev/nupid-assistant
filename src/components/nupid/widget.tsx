@@ -1,8 +1,10 @@
-import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { clsx } from "clsx";
 import { Display } from "@/components/nupid/display";
+import { clearMcpToken, ensureMcpToken, hasClaudeKey, setClaudeKey } from "@/lib/nupid/credentials";
+import { claudeCodeCommand, claudeDesktopConfig } from "@/lib/nupid/mcp";
 import { useNupid } from "@/lib/nupid/store";
-import { HOTKEYS, MODELS, TABS, modelShort, type Message, type Safety } from "@/lib/nupid/types";
+import { CLAUDE_MODELS, HOTKEYS, MCP_TOOLS, MODELS, TABS, modelShort, type GlassTint, type Message, type McpTool, type Safety } from "@/lib/nupid/types";
 
 function Rich({ text }: { text: string }) {
   const lines = text.split("\n");
@@ -183,6 +185,172 @@ function Settings({ onClose }: { onClose: () => void }) {
       <button type="button" className="self-start text-sm text-signal" onClick={clearChat}>
         Clear chat
       </button>
+      <McpSettings />
+    </div>
+  );
+}
+
+function McpSettings() {
+  const settings = useNupid((s) => s.settings);
+  const patchSettings = useNupid((s) => s.patchSettings);
+  const callMcp = useNupid((s) => s.callMcp);
+  const actionLog = useNupid((s) => s.actionLog);
+  const [keyOn, setKeyOn] = useState(hasClaudeKey());
+  const [copied, setCopied] = useState("");
+  const snippet = claudeDesktopConfig();
+
+  return (
+    <div className="space-y-3 border-t border-line pt-3">
+      <p className="nupid-kicker text-mute">Brain</p>
+      <label className="block text-sm">
+        <select
+          className="nupid-field w-full px-2 py-2"
+          value={settings.brain}
+          onChange={(event) => {
+            const brain = event.target.value as "local" | "claude";
+            if (brain === "claude" && !settings.screenLeaveAck) {
+              const ok = window.confirm("Claude sends the focused window's text off this PC. Screenshots stay here. Continue?");
+              if (!ok) return;
+              patchSettings({ brain, screenLeaveAck: true });
+              return;
+            }
+            patchSettings({ brain });
+          }}
+        >
+          <option value="local">Local</option>
+          <option value="claude">Claude API</option>
+        </select>
+      </label>
+      {settings.brain === "claude" ? (
+        <>
+          <label className="block text-sm">
+            <span className="nupid-kicker text-mute">Claude model</span>
+            <select
+              className="nupid-field mt-1 w-full px-2 py-2"
+              value={settings.claudeModel}
+              onChange={(event) => patchSettings({ claudeModel: event.target.value })}
+            >
+              {CLAUDE_MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="nupid-kicker text-mute">API key</span>
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder={keyOn ? "Saved in this session" : "Not stored on disk"}
+              className="nupid-field mt-1 w-full px-2 py-2"
+              onChange={(event) => {
+                setClaudeKey(event.target.value);
+                setKeyOn(hasClaudeKey());
+              }}
+            />
+          </label>
+          <p className="text-xs text-mute">Windows keeps this in Credential Manager. This preview keeps it in memory only.</p>
+        </>
+      ) : null}
+      <label className="flex items-center justify-between gap-3 text-sm">
+        MCP server
+        <Switch
+          on={settings.mcpServer}
+          label="MCP server"
+          onChange={(mcpServer) => {
+            if (!mcpServer) clearMcpToken();
+            patchSettings({ mcpServer, mcpHttp: mcpServer ? settings.mcpHttp : false });
+          }}
+        />
+      </label>
+      {settings.mcpServer ? (
+        <>
+          <label className="flex items-center justify-between gap-3 text-sm">
+            Localhost HTTP
+            <Switch
+              on={settings.mcpHttp}
+              label="Localhost MCP HTTP"
+              onChange={(mcpHttp) => patchSettings({ mcpHttp })}
+            />
+          </label>
+          {settings.mcpHttp ? (
+            <p className="break-all font-mono text-xs text-mute">127.0.0.1 token {ensureMcpToken()}</p>
+          ) : null}
+          <p className="nupid-kicker text-mute">Tool permissions</p>
+          {MCP_TOOLS.map((tool) => (
+            <label key={tool} className="flex items-center justify-between gap-3 text-sm">
+              {tool.replaceAll("_", " ")}
+              <Switch
+                on={settings.mcpPermissions[tool]}
+                label={tool}
+                onChange={(on) =>
+                  patchSettings({ mcpPermissions: { ...settings.mcpPermissions, [tool]: on } })
+                }
+              />
+            </label>
+          ))}
+          <button
+            type="button"
+            className="rounded-full border border-line px-3 py-2 text-sm"
+            onClick={() =>
+              callMcp(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "read_screen" satisfies McpTool, arguments: {} } }))
+            }
+          >
+            Try read screen
+          </button>
+          <pre className="nupid-field overflow-auto p-2 font-mono text-[11px] whitespace-pre-wrap">{snippet}</pre>
+          <button
+            type="button"
+            className="text-sm text-phosphor"
+            onClick={() => {
+              void navigator.clipboard?.writeText(snippet);
+              setCopied("config");
+            }}
+          >
+            {copied === "config" ? "Copied" : "Copy Claude Desktop config"}
+          </button>
+          <p className="font-mono text-xs text-mute">{claudeCodeCommand()}</p>
+          {actionLog.length ? <p className="text-xs text-mute">Log: {actionLog.slice(-3).join(" · ")}</p> : null}
+        </>
+      ) : (
+        <p className="text-xs text-mute">MCP stays off, so it uses no extra memory until you enable it.</p>
+      )}
+      <p className="nupid-kicker text-mute">Glass</p>
+      <label className="block text-sm">
+        Blur {settings.glassBlur}
+        <input
+          type="range"
+          min={0}
+          max={28}
+          value={settings.glassBlur}
+          onChange={(event) => patchSettings({ glassBlur: Number(event.target.value) })}
+          className="w-full"
+        />
+      </label>
+      <label className="block text-sm">
+        Tint strength {Math.round(settings.glassAlpha * 100)}
+        <input
+          type="range"
+          min={20}
+          max={80}
+          value={Math.round(settings.glassAlpha * 100)}
+          onChange={(event) => patchSettings({ glassAlpha: Number(event.target.value) / 100 })}
+          className="w-full"
+        />
+      </label>
+      <label className="block text-sm">
+        <span className="nupid-kicker text-mute">Glass tint</span>
+        <select
+          className="nupid-field mt-1 w-full px-2 py-2"
+          value={settings.glassTint}
+          onChange={(event) => patchSettings({ glassTint: event.target.value as GlassTint })}
+        >
+          <option value="phosphor">Mint</option>
+          <option value="peach">Peach</option>
+          <option value="ink">Clear</option>
+        </select>
+      </label>
     </div>
   );
 }
@@ -262,6 +430,8 @@ export function Widget() {
   const send = useNupid((s) => s.send);
   const stop = useNupid((s) => s.stop);
   const halt = useNupid((s) => s.halt);
+  const control = useNupid((s) => s.control);
+  const online = useNupid((s) => s.online);
   const setListening = useNupid((s) => s.setListening);
   const shellRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -302,6 +472,7 @@ export function Widget() {
   };
 
   const slot = modelSlot === "hot" ? "live" : modelSlot === "loading" ? "load" : "off";
+  const source = [control === "mcp" ? "CLAUDE/MCP" : "", online ? "ONLINE" : ""].filter(Boolean).join(" · ");
   const thinking = face === "thinking" || modelSlot === "loading";
 
   if (collapsed) {
@@ -324,6 +495,7 @@ export function Widget() {
           status={status}
           modelLabel={modelShort(settings.model)}
           slot={slot}
+          source={source}
         />
       </button>
     );
@@ -384,6 +556,7 @@ export function Widget() {
         status={status}
         modelLabel={modelShort(settings.model)}
         slot={slot}
+          source={source}
       />
       <div className="flex items-center justify-between gap-2 px-3 pt-1">
         <p className="nupid-readout truncate text-phosphor">{status}</p>

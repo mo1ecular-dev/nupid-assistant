@@ -13,6 +13,24 @@ export type TabId = "face" | "pulse" | "ripple" | "torus" | "clock" | "ticker";
 export type ModelSlot = "off" | "loading" | "hot";
 export type AppId = "notepad" | "browser" | "files" | "terminal";
 
+export type Brain = "local" | "claude";
+export type GlassTint = "phosphor" | "peach" | "ink";
+
+export type McpTool =
+  | "read_screen"
+  | "screenshot"
+  | "click"
+  | "double_click"
+  | "type_text"
+  | "press_keys"
+  | "scroll"
+  | "drag"
+  | "open_app"
+  | "open_url"
+  | "get_assistant_state"
+  | "show_message"
+  | "set_face_state";
+
 export type Settings = {
   model: ModelId;
   preferredModel: ModelId;
@@ -23,6 +41,16 @@ export type Settings = {
   startWithWindows: boolean;
   webAccess: boolean;
   systemPrompt: string;
+  brain: Brain;
+  claudeModel: string;
+  screenLeaveAck: boolean;
+  mcpServer: boolean;
+  mcpHttp: boolean;
+  mcpPermissions: Record<McpTool, boolean>;
+  externalMcp: string;
+  glassBlur: number;
+  glassAlpha: number;
+  glassTint: GlassTint;
 };
 
 export type Message = {
@@ -57,6 +85,45 @@ export type Action =
 export const DEFAULT_PROMPT =
   "You are Nupid, a small on-screen assistant. Be brief. Use tools for desktop tasks. Never do anything destructive without asking.";
 
+export const MCP_TOOLS: McpTool[] = [
+  "read_screen",
+  "screenshot",
+  "click",
+  "double_click",
+  "type_text",
+  "press_keys",
+  "scroll",
+  "drag",
+  "open_app",
+  "open_url",
+  "get_assistant_state",
+  "show_message",
+  "set_face_state",
+];
+
+export const CLAUDE_MODELS = [
+  { id: "claude-haiku-4-5", name: "Haiku" },
+  { id: "claude-sonnet-4-5", name: "Sonnet" },
+];
+
+function mcpOff(): Record<McpTool, boolean> {
+  return {
+    read_screen: false,
+    screenshot: false,
+    click: false,
+    double_click: false,
+    type_text: false,
+    press_keys: false,
+    scroll: false,
+    drag: false,
+    open_app: false,
+    open_url: false,
+    get_assistant_state: false,
+    show_message: false,
+    set_face_state: false,
+  };
+}
+
 export const defaultSettings: Settings = {
   model: "qwen2.5-1.5b",
   preferredModel: "qwen2.5-1.5b",
@@ -67,6 +134,16 @@ export const defaultSettings: Settings = {
   startWithWindows: false,
   webAccess: false,
   systemPrompt: DEFAULT_PROMPT,
+  brain: "local",
+  claudeModel: "claude-haiku-4-5",
+  screenLeaveAck: false,
+  mcpServer: false,
+  mcpHttp: false,
+  mcpPermissions: mcpOff(),
+  externalMcp: "",
+  glassBlur: 18,
+  glassAlpha: 0.46,
+  glassTint: "phosphor",
 };
 
 export const MODELS: { id: ModelId; name: string; ram: string; note: string }[] = [

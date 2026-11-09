@@ -18,6 +18,9 @@ export function Stage() {
   const hidden = useNupid((s) => s.hidden);
   const running = useNupid((s) => s.running);
   const deskOpen = useNupid((s) => s.deskOpen);
+  const glassBlur = useNupid((s) => s.settings.glassBlur);
+  const glassAlpha = useNupid((s) => s.settings.glassAlpha);
+  const glassTint = useNupid((s) => s.settings.glassTint);
   const lowPower = useNupid((s) => s.settings.lowPower);
   const setLowPower = useNupid((s) => s.setLowPower);
   const toggleSettings = useNupid((s) => s.toggleSettings);
@@ -64,7 +67,15 @@ export function Stage() {
   }, []);
 
   return (
-    <main className="desk-sky relative h-dvh overflow-hidden text-ink">
+    <main
+      className="desk-sky relative h-dvh overflow-hidden text-ink"
+      style={{
+        ["--glass-blur" as string]: `${glassBlur}px`,
+        ["--glass-alpha" as string]: String(glassAlpha),
+        ["--glass-tint" as string]:
+          glassTint === "peach" ? "#f0b5a4" : glassTint === "ink" ? "#1c1926" : "#143028",
+      }}
+    >
       <div className="desk-stars pointer-events-none absolute inset-0" />
       <div className="desk-vignette pointer-events-none absolute inset-0" />
       <h1 className="sr-only">Nupid Assistant</h1>
@@ -106,7 +117,7 @@ function Tray({
   return (
     <div className="fixed right-3 bottom-3 z-50">
       {menu ? (
-        <div className="mb-2 w-44 rounded-xl border border-line bg-panel p-1 text-sm">
+        <div className="nupid-glass mb-2 w-44 p-1 text-sm">
           <button
             type="button"
             className="block w-full rounded-lg px-3 py-2 text-left hover:bg-panel-2"
@@ -153,7 +164,7 @@ function Tray({
         type="button"
         aria-label="Nupid Assistant tray"
         title="Nupid Assistant"
-        className="flex size-11 items-center justify-center rounded-full border border-phosphor bg-panel"
+        className="nupid-glass flex size-11 items-center justify-center rounded-full"
         onClick={() => setMenu((value) => !value)}
       >
         <span className="nupid-kicker text-phosphor">Nu</span>

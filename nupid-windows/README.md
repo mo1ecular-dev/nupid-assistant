@@ -13,6 +13,7 @@ Native shell for Windows 10 (64-bit) and Windows 11. No Mac or Linux build.
 - Actions are one JSON object at a time. Grammar: `grammars/action.gbnf`
 - Agent loop stops at 8 steps. Shell, delete, send, purchase, and install always confirm
 - Emergency stop: Ctrl+Shift+H
+- Version 0.2.0. MCP and Claude are optional and off by default. See the repo README.
 
 ## One command
 

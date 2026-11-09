@@ -39,6 +39,37 @@ powershell -ExecutionPolicy Bypass -File .\nupid-windows\build-installer.ps1
 
 That produces an NSIS installer and a portable exe. The installer bundles the WebView2 bootstrapper. Normal use does not need admin. Start with Windows stays off until you opt in.
 
+## MCP and Claude
+
+Both are off until you enable them in Settings. While they are off they do not start a server, open a socket, or call the network.
+
+MCP tools are the same actions the widget already runs (`read_screen`, `screenshot`, `click`, `double_click`, `type_text`, `press_keys`, `scroll`, `drag`, `open_app`, `open_url`, plus `get_assistant_state`, `show_message`, and `set_face_state`). Turn a tool on before a client can call it. Delete, shell, send, and purchase still use the Allow / Deny prompt. Ctrl+Shift+H stops an in-flight call.
+
+Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "nupid": {
+      "command": "NupidAssistant.exe",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+Claude Code:
+
+```text
+claude mcp add nupid -- NupidAssistant.exe --mcp
+```
+
+Settings can also copy that snippet. The optional HTTP mode is `127.0.0.1` only, with a random token for that session.
+
+Brain stays Local unless you pick Claude API. The preview holds the key in memory. The Windows build should store it with Credential Manager, not in a file. The default remote model is `claude-haiku-4-5`. A failed key or a dropped connection falls back to the local model. The face shows ONLINE only while a Claude reply is actually used. Screen text is not sent until you accept the one-time warning, and even then only the focused window's text goes — not a screenshot.
+
+An external MCP server, if you add one, must be `localhost` or `127.0.0.1`.
+
 ## Memory budget
 
 Idle target is under 150 MB and about 0% CPU, because the model is not loaded. With Qwen2.5-1.5B Q4 resident, stay under 1.2 GB. The face is a dot grid at 30 fps while active, 5 fps when idle, 15 fps in low power.
